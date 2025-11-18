@@ -41,3 +41,6 @@ phases:
       - echo "Updating Lambda function code..."
       - aws lambda update-function-code --function-name ecomm_dimmensions_table_gen_function --zip-file "fileb://package.zip"
       - echo "Lambda function code updated successfully."
+
+      - echo "Updating Lambda Handler..."
+      - aws lambda update-function-configuration --function-name ecomm_dimmensions_table_gen_function --handler dimension_tables_mock.dimmension_tables_mock_lambda_handler
