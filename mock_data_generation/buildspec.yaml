@@ -39,4 +39,5 @@ phases:
     commands:
       - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
       - echo "Updating Lambda function code..."
-      - aws lambda update-function-code --function-name dimmensions_table_gen_function --zip-file "fileb://package.zip"
+      - aws lambda update-function-code --function-name ecomm_dimmensions_table_gen_function --zip-file "fileb://package.zip"
+      - echo "Lambda function code updated successfully."
