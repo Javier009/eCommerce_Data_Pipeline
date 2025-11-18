@@ -1,0 +1,42 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - pip install --upgrade pip
+
+  build:
+    commands:
+      - set -eux
+      - echo "Repo root:" && pwd && ls -la
+      - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
+      - echo "In mock_data_generation:" && pwd && ls -la
+
+      # Check that both your code and requirements file exist
+      - test -f dimension_tables_mock.py
+      - test -f requirements.txt
+
+      # --- STEP 1: Create a temp folder for dependencies ---
+      - mkdir -p package_files
+
+      # --- STEP 2: Install from requirements.txt into that folder ---
+      - pip install -r requirements.txt --target ./package_files
+
+      # --- STEP 3: Zip the dependencies first ---
+      - cd package_files
+      - zip -r9 ../package.zip .
+      - cd ..
+
+      # --- STEP 4: Add your function code to the EXISTING zip ---
+      - zip -g package.zip dimension_tables_mock.py
+      
+      - unzip -l package.zip
+      
+
+  post_build:
+    commands:
+      - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
+      - echo "Updating Lambda function code..."
+      - aws lambda update-function-code --function-name dimmensions_table_gen_function --zip-file "fileb://package.zip"
