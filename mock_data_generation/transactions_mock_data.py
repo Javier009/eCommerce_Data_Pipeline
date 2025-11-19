@@ -109,7 +109,7 @@ def trigger_glue_job(job_name:str,
                      redshift_database:str,
                      redshift_tmp_dir:str):
     try:
-        response = glue.start_job_run(JobName=job_name, arguments={
+        response = glue.start_job_run(JobName=job_name, Arguments={
             "--s3_bucket": s3_bucket,
             "--s3_key": s3_key,
             "--redshift_connection": redshift_connection,
