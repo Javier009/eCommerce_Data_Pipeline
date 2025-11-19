@@ -1,4 +1,3 @@
-#s3://your-bucket/transactions/year=2023/month=03/day=15/hour=05/min=04transactions_2023-03-15_06_04_16.csv
 import boto3
 import time
 import random
@@ -7,17 +6,26 @@ from datetime import datetime
 import csv
 from io import StringIO
 
+
+# Redshift and SecretManager 
 REGION     = "us-east-1"
 WORKGROUP  = "ecomm-exercise"
 DATABASE   = "dev"
 SECRET_NAME = "redshift/dev/admin" 
 
+# AWS Glue Configuration
+GLUE_JOB_NAME      = "Read and join transactions with product and cusotmer dim tables" 
+REDSHIFT_CONN_NAME = "ecomm_glue_connection"                 
+REDSHIFT_DATABASE  = "dev"                         
+REDSHIFT_TMP_DIR   = "s3://ecomm-transactions-bucket/tmp" 
+
 secrets = boto3.client("secretsmanager", region_name=REGION)
 rsd  = boto3.client("redshift-data",   region_name=REGION)
+glue = boto3.client("glue", region_name=REGION) 
 
-# 1) Resolve Secret ARN (so we don't hardcode it)
-SECRET_ARN = secrets.describe_secret(SecretId=SECRET_NAME)["ARN"]
+SECRET_ARN = secrets.describe_secret(SecretId=SECRET_NAME)["ARN"] # Resolve Secret ARN (so we don't hardcode it)
 
+ 
 def df_sql(sql:str):
 
     r = rsd.execute_statement(
@@ -89,17 +97,47 @@ def data_to_s3(bucket_name:str, data:list):
         csv_writer.writerows(data)
         s3_client.put_object(Bucket=bucket_name, Key=object_key, Body=csv_buffer.getvalue())
         print(f"Mock transactions data uploaded to s3://{bucket_name}/{object_key} in CSV format.")
+        return object_key
     except Exception as e:
         print(f"Error uploading CSV to S3: {str(e)}")
 
+
+def trigger_glue_job(job_name:str,
+                     s3_bucket:str,
+                     s3_key:str,
+                     redshift_connection:str,
+                     redshift_database:str,
+                     redshift_tmp_dir:str):
+    try:
+        response = glue.start_job_run(JobName=job_name, arguments={
+            "--s3_bucket": s3_bucket,
+            "--s3_key": s3_key,
+            "--redshift_connection": redshift_connection,
+            "--redshift_database": redshift_database,
+            "--redshift_tmp_dir": redshift_tmp_dir
+        })
+        job_run_id = response['JobRunId']
+        print(f"Glue job '{job_name}' started with JobRunId: {job_run_id}")
+        return job_run_id
+    except Exception as e:
+        print(f"Error starting Glue job: {str(e)}")
 
 def transactions_data_mock_lambda_handler(event, context):
     try:
         print("Generating mock transactions data...")
         transactions = fake_transactions_data(number_of_records=100)
         print(f"Generated {len(transactions)} mock transactions records.")
-        data_to_s3(bucket_name="ecomm-transactions-bucket", data=transactions)
+        s3_object_key = data_to_s3(bucket_name="ecomm-transactions-bucket", data=transactions)
         print("Data upload complete.")
+        time.sleep(10)  # Wait 10 seconds to ensure S3 consistency
+        trigger_glue_job(
+            job_name=GLUE_JOB_NAME,
+            s3_bucket="ecomm-transactions-bucket",
+            s3_key=s3_object_key,
+            redshift_connection=REDSHIFT_CONN_NAME,
+            redshift_database=REDSHIFT_DATABASE,
+            redshift_tmp_dir=REDSHIFT_TMP_DIR
+        )
         return {
             'statusCode': 200,
             'body': 'Mock transactions data generated and uploaded to S3 successfully.'
