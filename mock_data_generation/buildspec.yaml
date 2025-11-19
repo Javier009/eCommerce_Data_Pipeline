@@ -14,9 +14,10 @@ phases:
       - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
       - echo "In mock_data_generation:" && pwd && ls -la
 
-      # Check that both your code and requirements file exist
+      # Check that code and requirements file exist
       - test -f dimension_tables_mock.py
       - test -f requirements.txt
+      - test -f transactions_mock_data.py
 
       ### DIMMENSIONS TABLES LAMBDA FUNCTION PACKAGE CREATION ###
       # --- STEP 1: Create a temp folder for dependencies ---
@@ -37,12 +38,11 @@ phases:
 
       ### TRANSACTIONS DATA MOCK GENERATION LAMBDA FUNCTION PACKAGE CREATION ###
       # --- STEP 1: Create a temp folder for dependencies ---
-      - cd
       - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
       - mkdir -p package_files_txn
       - echo "In mock_data_generation:" && pwd && ls -la
       # --- STEP 2: Install from requirements.txt into that folder ---
-      - pip install -r transactions_requirements.txt --target ./package_files_txn
+      - pip install -r requirements.txt --target ./package_files_txn
       # --- STEP 3: Zip the dependencies first ---
       - cd package_files_txn
       - zip -r9 ../transactions_package.zip .
