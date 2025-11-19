@@ -12,7 +12,7 @@ rsd  = boto3.client("redshift-data",   region_name=REGION)
 # 1) Resolve Secret ARN (so we don't hardcode it)
 SECRET_ARN = secrets.describe_secret(SecretId=SECRET_NAME)["ARN"]
 
-def df_sql(sql: str, is_insert:bool) -> pd.DataFrame:
+def df_sql(sql: str, is_insert:bool):
     # kick off query
     r = rsd.execute_statement(
         WorkgroupName=WORKGROUP,

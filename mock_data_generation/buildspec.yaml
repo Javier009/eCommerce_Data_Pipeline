@@ -18,6 +18,7 @@ phases:
       - test -f dimension_tables_mock.py
       - test -f requirements.txt
 
+      ### DIMMENSIONS TABLES LAMBDA FUNCTION PACKAGE CREATION ###
       # --- STEP 1: Create a temp folder for dependencies ---
       - mkdir -p package_files
 
@@ -31,12 +32,29 @@ phases:
 
       # --- STEP 4: Add your function code to the EXISTING zip ---
       - zip -g package.zip dimension_tables_mock.py
-      
+
       - unzip -l package.zip
+
+      ### TRANSACTIONS DATA MOCK GENERATION LAMBDA FUNCTION PACKAGE CREATION ###
+      # --- STEP 1: Create a temp folder for dependencies ---
+      - cd
+      - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
+      - mkdir -p package_files_txn
+      - echo "In mock_data_generation:" && pwd && ls -la
+      # --- STEP 2: Install from requirements.txt into that folder ---
+      - pip install -r transactions_requirements.txt --target ./package_files_txn
+      # --- STEP 3: Zip the dependencies first ---
+      - cd package_files_txn
+      - zip -r9 ../transactions_package.zip .
+      - cd ..
+      # --- STEP 4: Add your function code to the EXISTING zip ---
+      - zip -g transactions_package.zip transactions_mock_data.py
+      - unzip -l transactions_package.zip
       
 
   post_build:
     commands:
+    ### DIMMENSIONS TABLES LAMBDA FUNCTION UPDATE ###
       - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
 
       - echo "Updating Lambda function code..."
@@ -48,3 +66,17 @@ phases:
 
       - echo "Updating Lambda Handler..."
       - aws lambda update-function-configuration --function-name ecomm_dimmensions_table_gen_function --handler dimension_tables_mock.dimmension_tables_mock_lambda_handler
+
+    ### TRANSACTIONS DATA MOCK GENERATION LAMBDA FUNCTION UPDATE ###
+      - cd "$CODEBUILD_SRC_DIR/mock_data_generation"
+
+      - echo "Updating Transactions Lambda function code..."
+      - aws lambda update-function-code --function-name ecomm_transactions_data_gen_function --zip-file "fileb://transactions_package.zip"
+
+      - echo "Transactions Lambda function code updated successfully."
+
+      - echo "Waiting for Transactions Lambda update to complete..."
+
+      - aws lambda wait function-updated --function-name ecomm_transactions_data_gen_function
+      - echo "Updating Transactions Lambda Handler..."
+      - aws lambda update-function-configuration --function-name ecomm_transactions_data_gen_function --handler transactions_mock_data.transactions_data_mock_lambda_handler
